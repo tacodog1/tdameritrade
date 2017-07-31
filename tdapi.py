@@ -1,7 +1,7 @@
 import datetime
 import base64
-import httplib
-import urllib
+import http.client
+import urllib.request, urllib.parse, urllib.error
 import getpass
 import binascii
 import time
@@ -272,7 +272,7 @@ class TDAmeritradeAPI():
             return False
 
     def keepAlive(self):
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
         conn.request('POST', '/apps/100/KeepAlive?source=%s' % self._sourceID)
         response = conn.getresponse()
         #print response.status, response.reason
@@ -292,13 +292,13 @@ class TDAmeritradeAPI():
 
     def login(self, login, password):
         logging.debug('[tdapi] Entered login()')
-        params = urllib.urlencode({'source': self._sourceID, 'version': self._version})
+        params = urllib.parse.urlencode({'source': self._sourceID, 'version': self._version})
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        body = urllib.urlencode({'userid': login,
+        body = urllib.parse.urlencode({'userid': login,
                                  'password': password,
                                  'source': self._sourceID,
                                  'version': self._version})
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
         #conn.set_debuglevel(100)
         conn.request('POST', '/apps/100/LogIn?'+params, body, headers)
 
@@ -336,7 +336,7 @@ class TDAmeritradeAPI():
 
 
     def logout(self):
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
         conn.request('POST', '/apps/100/LogOut?source=%s' % self._sourceID)
         response = conn.getresponse()
         data = response.read()
@@ -353,9 +353,9 @@ class TDAmeritradeAPI():
         arguments = {'source': self._sourceID}
         if accountID != None:
             arguments['accountid'] = accountID
-        params = urllib.urlencode(arguments)
+        params = urllib.parse.urlencode(arguments)
 
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
         #conn.set_debuglevel(100)
         conn.request('GET', '/apps/100/StreamerInfo?'+params)
         response = conn.getresponse()
@@ -393,9 +393,9 @@ class TDAmeritradeAPI():
 
         arguments = {'source': self._sourceID,
                         'symbol': string.join(tickers, ',')}
-        params = urllib.urlencode(arguments)
+        params = urllib.parse.urlencode(arguments)
         #print 'Arguments: ', arguments
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
 
         #conn.set_debuglevel(100)
         conn.request('GET', ('/apps/100/Quote;jsessionid=%s?' % self.getSessionID()) +params)
@@ -452,16 +452,15 @@ class TDAmeritradeAPI():
                         'range': 'ALL',
                         'quotes': 'true'
                     }
-        params = urllib.urlencode(arguments)
+        params = urllib.parse.urlencode(arguments)
         #print 'Arguments: ', arguments
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
 
         #conn.set_debuglevel(100)
         conn.request('GET', ('/apps/200/BinaryOptionChain;jsessionid=%s?' % self.getSessionID()) +params)
         response = conn.getresponse()
         data = response.read()
         conn.close()
-        #print 'Read %d bytes' % len(data)
 
         cursor = 0
         error =         unpack('b',  data[cursor:cursor+1])[0]
@@ -470,7 +469,6 @@ class TDAmeritradeAPI():
         if error != 0:
             errorLength =   unpack('>h', data[cursor:cursor+2])[0]
             cursor += 2
-            #print 'Error length:', errorLength
             if errorLength > 0:
                 errorText = data[cursor:cursor+errorLength]
                 cursor += errorLength
@@ -479,12 +477,10 @@ class TDAmeritradeAPI():
         cursor += 2
         symbol = data[cursor:cursor+symbolLength]
         cursor += symbolLength
-        #print 'Symbol: %s' % symbol
         symbolDescriptionLength = unpack('>h', data[cursor:cursor+2])[0]
         cursor += 2
         symbolDescription = data[cursor:cursor+symbolDescriptionLength]
         cursor += symbolDescriptionLength
-        #print 'Symbol description: %s' % symbolDescription
 
         bid = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
@@ -494,49 +490,34 @@ class TDAmeritradeAPI():
         cursor += 2
         baSize = data[cursor:cursor+baSizeLength]
         cursor += baSizeLength
-        #print 'Bid: %f' % bid
-        #print 'Ask: %f' % ask
-        #print 'Bid/Ask Size: %s' % baSize
 
         last = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Last: %f' % last
         open = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Open: %f' % open
         high = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'High: %f' % high
         low = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Low: %f' % low
         close = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Close: %f' % close
         volume = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Volume: %f' % volume
         change = unpack('>d', data[cursor:cursor+8])[0]
         cursor += 8
-        #print 'Change: %f' % change
 
-        rtFlag = unichr(unpack('>H', data[cursor:cursor+2])[0])
+        rtFlag = chr(unpack('>H', data[cursor:cursor+2])[0])
         cursor += 2
-        #print 'Realtime/Delayed Flag: %s' % rtFlag
 
         qtLength = unpack('>H', data[cursor:cursor+2])[0]
         cursor += 2
-        #print 'qtLength: %d' % qtLength
         quoteTime = data[cursor:cursor+qtLength]
         cursor += qtLength
-        #print 'Quote time: %s' % quoteTime
         rowCount = unpack('>i', data[cursor:cursor+4])[0]
         cursor += 4
-        #print 'Row count: %d' % rowCount
 
         optionChain = []
         for i in range(rowCount):
-            #print 'Reading row %d' % i
             if cursor > len(data):
                 print('Error! Read too much data')
                 break
@@ -560,7 +541,7 @@ class TDAmeritradeAPI():
             o.standardOptionFlag = unpack('b',  data[cursor:cursor+1])[0]; cursor += 1
 
             # Put/Call Indicator - Char - 2 (P or C in unicode)
-            o.pcIndicator = unichr(unpack('>H', data[cursor:cursor+2])[0]); cursor += 2
+            o.pcIndicator = chr(unpack('>H', data[cursor:cursor+2])[0]); cursor += 2
 
             # Option Symbol Length - Short - 2
             l = unpack('>h', data[cursor:cursor+2])[0]; cursor += 2
@@ -650,11 +631,10 @@ class TDAmeritradeAPI():
                 #    Deliverable Shares - Integer - 4
                 o.deliverables.append((s, unpack('>i', data[cursor:cursor+4])[0])); cursor += 4
             # END
-            #print o
 
             # Change all "nan" to None to make sure the oce is serializable
-            for k in o.__dict__.keys():
-                if (type(o.__dict__[k]) == types.FloatType) and math.isnan(o.__dict__[k]):
+            for k in list(o.__dict__.keys()):
+                if (type(o.__dict__[k]) == float) and math.isnan(o.__dict__[k]):
                     logging.info('[tdapi.getBinaryOptionChain] Converting o[%s]=nan to None' % (k))
                     o.__dict__[k] = None
 
@@ -693,24 +673,21 @@ class TDAmeritradeAPI():
         # TODO: build params conditionally based on whether we're doing period-style request
         # TODO: support start and end dates
         validArgs = {}
-        for k in arguments.keys():
+        for k in list(arguments.keys()):
             if arguments[k] != None:
                 validArgs[k] = arguments[k]
-        params = urllib.urlencode(validArgs)
-        #print 'Arguments: ', validArgs
+        params = urllib.parse.urlencode(validArgs)
 
         logging.getLogger("requests").setLevel(logging.WARNING)
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn = http.client.HTTPSConnection('apis.tdameritrade.com')
         conn.set_debuglevel(0)
 
         conn.request('GET', '/apps/100/PriceHistory?'+params)
         response = conn.getresponse()
         if response.status != 200:
-            raise ValueError, response.reason
-        #print response.status, response.reason
+            raise ValueError(response.reason)
         data = response.read()
         conn.close()
-        #print 'Read %d bytes' % len(data)
 
         # The first 15 bytes are the header
         # DATA              TYPE        DESCRIPTION
@@ -722,18 +699,15 @@ class TDAmeritradeAPI():
 
         cursor = 0
         symbolCount =   unpack('>i', data[0:4])[0]
-        #print('Symbol count =0x%x' % symbolCount)
         if symbolCount > 1:
             fp = open('tdapi_debug_dump','w')
             fp.write(data)
             fp.close()
-            raise ValueError, 'Error - see tdapi_debug_dump'
+            raise ValueError('Error - see tdapi_debug_dump')
 
         symbolLength =  unpack('>h', data[4:6])[0]
-        #print 'Symbol length:', symbolLength
         cursor = 6
         symbol =        data[cursor:cursor+symbolLength]
-        #print 'Symbol: ', symbol
         cursor += symbolLength
         error =         unpack('b',  data[cursor:cursor+1])[0]
         cursor += 1
@@ -742,17 +716,13 @@ class TDAmeritradeAPI():
             errorLength =   unpack('>h', data[cursor:cursor+2])[0]
             # TODO: verify that this is correct below -- advance cursor for error length
             cursor += 2
-            #print 'Error length:', errorLength
             if errorLength > 0:
                 errorText = data[cursor:cursor+errorLength]
                 cursor += errorLength
-                #print '[PriceHistory] Error:', errorText
-                raise ValueError, '[getPriceHistory] Error: %s' % errorText
+                raise ValueError('[getPriceHistory] Error: %s' % errorText)
 
         barCount =      unpack('>i', data[cursor:cursor+4])[0]
         cursor += 4
-        #print 'Bar count:', barCount
-        #print 'Trying to read %d bars starting at byte %d' % (barCount, cursor)
 
         # TODO: Add more rigorous checks on header data
 
@@ -762,7 +732,7 @@ class TDAmeritradeAPI():
         for i in range(barCount):
             # Make sure we still have enough data for a bar and a terminator (note only one terminator at the end)
             if cursor + 28 > len(data):
-                raise ValueError, 'Trying to read %d bytes from %d total!' % (cursor+58, len(data))
+                raise ValueError('Trying to read %d bytes from %d total!' % (cursor+58, len(data)))
             C     = unpack('>f', data[cursor:cursor+4])[0]
             cursor += 4
             H      = unpack('>f', data[cursor:cursor+4])[0]
@@ -780,7 +750,7 @@ class TDAmeritradeAPI():
 
         # Finally we should see a terminator of FF
         if data[cursor:cursor+2] != '\xff\xff':
-            raise ValueError, 'Did not find terminator at hexdata[%d]!' % cursor
+            raise ValueError('Did not find terminator at hexdata[%d]!' % cursor)
 
         df = pandas.DataFrame(data=bars, columns=['open','high','low','close','volume','timestamp'])
 
