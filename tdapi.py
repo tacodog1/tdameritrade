@@ -11,6 +11,7 @@ import math, types
 from struct import pack, unpack
 from xml.etree import ElementTree
 import logging
+import pandas
 
 class StockQuote():
     symbol = None
@@ -458,7 +459,6 @@ class TDAmeritradeAPI():
         #conn.set_debuglevel(100)
         conn.request('GET', ('/apps/200/BinaryOptionChain;jsessionid=%s?' % self.getSessionID()) +params)
         response = conn.getresponse()
-        print response.status, response.reason
         data = response.read()
         conn.close()
         #print 'Read %d bytes' % len(data)
@@ -538,7 +538,7 @@ class TDAmeritradeAPI():
         for i in range(rowCount):
             #print 'Reading row %d' % i
             if cursor > len(data):
-                print 'Error! Read too much data'
+                print('Error! Read too much data')
                 break
 
             o = OptionChainElement()
@@ -686,7 +686,9 @@ class TDAmeritradeAPI():
                         'intervaltype': intervalType,
                         'intervalduration': intervalDuration,
                         'period': period,
-                        'periodtype':periodType
+                        'periodtype':periodType,
+                        'startdate':startdate,
+                        'enddate':enddate
                     }
         # TODO: build params conditionally based on whether we're doing period-style request
         # TODO: support start and end dates
@@ -696,11 +698,15 @@ class TDAmeritradeAPI():
                 validArgs[k] = arguments[k]
         params = urllib.urlencode(validArgs)
         #print 'Arguments: ', validArgs
-        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
 
-        conn.set_debuglevel(100)
+        logging.getLogger("requests").setLevel(logging.WARNING)
+        conn = httplib.HTTPSConnection('apis.tdameritrade.com')
+        conn.set_debuglevel(0)
+
         conn.request('GET', '/apps/100/PriceHistory?'+params)
         response = conn.getresponse()
+        if response.status != 200:
+            raise ValueError, response.reason
         #print response.status, response.reason
         data = response.read()
         conn.close()
@@ -716,9 +722,12 @@ class TDAmeritradeAPI():
 
         cursor = 0
         symbolCount =   unpack('>i', data[0:4])[0]
-        #print 'Symbol count =',symbolCount
+        #print('Symbol count =0x%x' % symbolCount)
         if symbolCount > 1:
-            raise ValueError, 'Warning! Need to implement support for more than one symbol in PriceHistory!'
+            fp = open('tdapi_debug_dump','w')
+            fp.write(data)
+            fp.close()
+            raise ValueError, 'Error - see tdapi_debug_dump'
 
         symbolLength =  unpack('>h', data[4:6])[0]
         #print 'Symbol length:', symbolLength
@@ -749,32 +758,30 @@ class TDAmeritradeAPI():
 
         # Now we need to extract the bars
         bars = []
+
         for i in range(barCount):
             # Make sure we still have enough data for a bar and a terminator (note only one terminator at the end)
             if cursor + 28 > len(data):
                 raise ValueError, 'Trying to read %d bytes from %d total!' % (cursor+58, len(data))
-            b = HistoricalPriceBar()
-            b.close     = unpack('>f', data[cursor:cursor+4])[0]
+            C     = unpack('>f', data[cursor:cursor+4])[0]
             cursor += 4
-            b.high      = unpack('>f', data[cursor:cursor+4])[0]
+            H      = unpack('>f', data[cursor:cursor+4])[0]
             cursor += 4
-            b.low       = unpack('>f', data[cursor:cursor+4])[0]
+            L       = unpack('>f', data[cursor:cursor+4])[0]
             cursor += 4
-            b.open      = unpack('>f', data[cursor:cursor+4])[0]
+            O      = unpack('>f', data[cursor:cursor+4])[0]
             cursor += 4
-            b.volume    = unpack('>f', data[cursor:cursor+4])[0] * 100.0
+            V    = unpack('>f', data[cursor:cursor+4])[0] * 100.0
             cursor += 4
-            b.timestamp = time.ctime(float(unpack('>Q',data[cursor:cursor+8])[0]) / 1000.0) # Returned in ms since the epoch
+            #T = time.gmtime(float(unpack('>Q',data[cursor:cursor+8])[0]) / 1000.0) # Returned in ms since the epoch
+            T = datetime.datetime.utcfromtimestamp(float(unpack('>Q',data[cursor:cursor+8])[0]) / 1000.0) # Returned in ms since the epoch
             cursor += 8
-            bars.append(b)
+            bars.append((O,H,L,C,V,T))
 
         # Finally we should see a terminator of FF
         if data[cursor:cursor+2] != '\xff\xff':
             raise ValueError, 'Did not find terminator at hexdata[%d]!' % cursor
 
-        # Log the data
-        #print 'Close,High,Low,Open,Volume,Timestamp'
-        #for b in bars:
-        #    print b
+        df = pandas.DataFrame(data=bars, columns=['open','high','low','close','volume','timestamp'])
 
-        return bars
+        return df
