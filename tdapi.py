@@ -474,7 +474,7 @@ class TDAmeritradeAPI():
             if errorLength > 0:
                 errorText = data[cursor:cursor+errorLength]
                 cursor += errorLength
-                raise ValueError, '[getBinaryOptionChain] Error: %s' % errorText
+                raise ValueError('[getBinaryOptionChain] Error: %s' % errorText)
         symbolLength = unpack('>h', data[cursor:cursor+2])[0]
         cursor += 2
         symbol = data[cursor:cursor+symbolLength]
