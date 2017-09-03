@@ -311,7 +311,7 @@ class TDAmeritradeAPI():
 
         # The data response is an XML fragment. Log it.
         data = response.read()
-        logging.debug('Login response:\n--------'+data+'\n--------')
+        logging.debug('Login response:\n--------%s\n--------' % data)
         conn.close()
 
         # Make sure the login succeeded. First look for <result>OK</result>
@@ -700,7 +700,7 @@ class TDAmeritradeAPI():
         cursor = 0
         symbolCount =   unpack('>i', data[0:4])[0]
         if symbolCount > 1:
-            fp = open('tdapi_debug_dump','w')
+            fp = open('tdapi_debug_dump','wb')
             fp.write(data)
             fp.close()
             raise ValueError('Error - see tdapi_debug_dump')
@@ -749,8 +749,11 @@ class TDAmeritradeAPI():
             bars.append((O,H,L,C,V,T))
 
         # Finally we should see a terminator of FF
-        if data[cursor:cursor+2] != '\xff\xff':
-            raise ValueError('Did not find terminator at hexdata[%d]!' % cursor)
+        if data[cursor:cursor+2] != b'\xff\xff':
+            fp = open('tdapi_debug_dump','wb')
+            fp.write(data)
+            fp.close()
+            raise ValueError('Did not find terminator at hexdata[%d]! See tdapi_debug_dump' % cursor)
 
         df = pandas.DataFrame(data=bars, columns=['open','high','low','close','volume','timestamp'])
 
