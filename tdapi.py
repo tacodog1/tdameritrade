@@ -190,7 +190,8 @@ class OptionChainElement():
         self.quoteDateTime = quoteTime
 
     def __str__(self):
-        s = self.optionDescription
+        s = self.optionDescription.decode()
+
         if self.last != None:
             s = '%s Last: $%.2f' % (s, self.last)
         else:
@@ -398,7 +399,7 @@ class TDAmeritradeAPI():
             return []
 
         arguments = {'source': self._sourceID,
-                        'symbol': ','.join(tickers)}
+                        'symbol': str.join(',', tickers)}
         params = urllib.parse.urlencode(arguments)
         #print 'Arguments: ', arguments
         conn = http.client.HTTPSConnection('apis.tdameritrade.com')
@@ -469,7 +470,7 @@ class TDAmeritradeAPI():
         conn.close()
 
         cursor = 0
-        error =         unpack('b',  data[cursor:cursor+1])[0]
+        error = unpack('b',  data[cursor:cursor+1])[0]
         cursor += 1
         # If there is an error, there will be an error length and corresponding error text
         if error != 0:
