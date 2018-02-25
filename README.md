@@ -8,5 +8,7 @@ This is pre-Alpha level code and only implements a small portion of the TDA API.
 Note that in order to access the TDA API you will need to have an API key provided by TDAmeritrade. If you don't have one please contact TDAmeritrade.
 
 To use the tdapi_test.py example, provide your API key, username, and a ticker:
-python tdapi_test.py YOUR_API_KEY someuser AMZN
 
+```sh
+python tdapi_test.py YOUR_API_KEY someuser AMZN
+```
