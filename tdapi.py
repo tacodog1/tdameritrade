@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import datetime
 import base64
 import http.client
@@ -72,7 +73,8 @@ class OptionChainElement():
 
     # Option Date Length - Short - 2
     # Option Date - String - Variable
-    date = None
+    optionDate = None
+
     # Expiration Type Length - Short - 2
     # Expiration Type - String - Variable (R for Regular, L for LEAP)
     expirationType = None
@@ -190,12 +192,13 @@ class OptionChainElement():
     def __str__(self):
         s = self.optionDescription
         if self.last != None:
-            s += ' Last: $%.2f' % self.last
+            s = '%s Last: $%.2f' % (s, self.last)
         else:
-            s += ' Last: N/A'
-
-        s += " (d: %f g: %f t: %f v: %f r: %f)" % \
-            (self.delta, self.gamma, self.theta, self.vega, self.rho)
+            s = '%s Last: N/A' % s
+        if not (self.delta is None or self.gamma is None or self.theta is None or \
+            self.vega is None or self.rho is None):
+            s = "%s (d: %f g: %f t: %f v: %f r: %f)" % \
+                (s, self.delta, self.gamma, self.theta, self.vega, self.rho)
         #         date
         #         expirationType
         #         strike
@@ -236,6 +239,9 @@ class OptionChainElement():
         #    Deliverable Symbol - String - Variable
         #    Deliverable Shares - Integer - 4
         return s
+
+    # Python3
+    __repr__ = __str__
 
 class HistoricalPriceBar():
     close = None
@@ -392,7 +398,7 @@ class TDAmeritradeAPI():
             return []
 
         arguments = {'source': self._sourceID,
-                        'symbol': string.join(tickers, ',')}
+                        'symbol': ','.join(tickers)}
         params = urllib.parse.urlencode(arguments)
         #print 'Arguments: ', arguments
         conn = http.client.HTTPSConnection('apis.tdameritrade.com')
@@ -475,11 +481,11 @@ class TDAmeritradeAPI():
                 raise ValueError('[getBinaryOptionChain] Error: %s' % errorText)
         symbolLength = unpack('>h', data[cursor:cursor+2])[0]
         cursor += 2
-        symbol = data[cursor:cursor+symbolLength]
+        symbol = data[cursor:cursor+symbolLength].decode('utf-8')
         cursor += symbolLength
         symbolDescriptionLength = unpack('>h', data[cursor:cursor+2])[0]
         cursor += 2
-        symbolDescription = data[cursor:cursor+symbolDescriptionLength]
+        symbolDescription = data[cursor:cursor+symbolDescriptionLength].decode('utf-8')
         cursor += symbolDescriptionLength
 
         bid = unpack('>d', data[cursor:cursor+8])[0]
@@ -584,7 +590,7 @@ class TDAmeritradeAPI():
             # Underlying Symbol length - Short 2
             l = unpack('>h', data[cursor:cursor+2])[0]; cursor += 2
             # Underlying Symbol - String - Variable
-            o.underlyingSymbol = data[cursor:cursor+l]; cursor += l
+            o.underlyingSymbol = data[cursor:cursor+l].decode('utf-8'); cursor += l
 
             # Delta - Double- 8
             # Gamma - Double - 8
@@ -685,6 +691,7 @@ class TDAmeritradeAPI():
         conn.request('GET', '/apps/100/PriceHistory?'+params)
         response = conn.getresponse()
         if response.status != 200:
+            #import pdb; pdb.set_trace()
             raise ValueError(response.reason)
         data = response.read()
         conn.close()
