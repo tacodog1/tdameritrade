@@ -18,15 +18,15 @@ def main():
     pwd = getpass.getpass()
     td = TDAmeritradeAPI(args.sourceid)
     td.login(args.userid, pwd)
-    print 'Getting snapshot quote for %s' % args.ticker
+    print('Getting snapshot quote for %s' % args.ticker)
     quoteList = td.getSnapshotQuote([args.ticker],'stock',True)
-    print quoteList[args.ticker]
+    print(quoteList[args.ticker])
 
-    print 'Getting binary option chain for %s' % args.ticker
+    print('Getting binary option chain for %s' % args.ticker)
     chain = td.getBinaryOptionChain(args.ticker)
-    print 'Returned %d contracts. First 10:' % len(chain)
+    print('Returned %d contracts. First 10:' % len(chain))
     for option in chain[:10]:
-        print option
+        print(option)
 
     td.logout()
 
